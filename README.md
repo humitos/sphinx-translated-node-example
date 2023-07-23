@@ -4,3 +4,6 @@
 1. Install Sphinx
 1. Run `python -m sphinx -E -b html . -D language=es _build/html`
 1. Open `_build/html/index.html`
+
+
+Read more in https://github.com/sphinx-doc/sphinx/pull/11502
