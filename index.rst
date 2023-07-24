@@ -9,7 +9,7 @@ It highlights (in green) via CSS the translated paragraphs and shows the transla
 
    The source language is English and the target language is Spanish.
 
-This file is translated at |translated-percentage| %
+This file is translated at |translated-page-percentage| %
 
 This is a file written in English that will be translated to Spanish.
 

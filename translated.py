@@ -1,55 +1,76 @@
 import docutils
-
 from sphinx.transforms import SphinxTransform
 
 
-class TranslationCSSSubstitutions(SphinxTransform):
+class TranslationsManipulation(SphinxTransform):
     default_priority = 50
 
     def apply(self, **kwargs):
-        source = self.document.get('source')
-        self.app.translations[source] = {'total': 0, 'translated': 0}
+        filename = self.document.get('source')  # absolute source filename
 
+        # Default values for current source filename
+        self.app._translations[filename] = {
+            'total': 0,
+            'translated': 0,
+        }
+
+        # Traverse all the nodes of the document
         for node in self.document.traverse():
             if not hasattr(node, 'get'):
+                # Discard nodes we cannot access to its attributes
                 continue
 
-            if node.get('translated', False):
-                self.app.translations[source]['translated'] += 1
+            if any([isinstance(child, docutils.nodes.Text) for child in node.children]):
+                # Only work over nodes with a text child
+                if node.get('translated', False):
+                    # Increase the translated nodes
+                    self.app._translations[filename]['translated'] += 1
+                    css_class = self.app.env.config.translated_class
+                else:
+                    css_class = self.app.env.config.untranslated_class
+
+                # Append our custom untranslated CSS class to the node
                 classes = node.get('classes', [])
-                classes.append(self.app.env.config.translated_class)
+                classes.append(css_class)
                 node.replace_attr('classes', classes)
 
-            # Only count the nodes that are translatable
-            if len(node.children) == 1 and isinstance(node.children[0], docutils.nodes.Text):
-                self.app.translations[source]['total'] += 1
-
-        self.app.translations[source]['percentage'] = (self.app.translations[source]['translated'] / self.app.translations[source]['total']) * 100
+                # Increase the total of nodes
+                self.app._translations[filename]['total'] += 1
 
 
-class TranslationSubstitutions(SphinxTransform):
-    default_priority = 70
+        # Calculate total percentage of the page translated
+        self.app._translations[filename]['percentage'] = (
+            self.app._translations[filename]['translated'] /
+            self.app._translations[filename]['total']
+        ) * 100
 
-    def apply(self, **kwargs):
-        # only handle those not otherwise defined in the document
-        to_handle = 'translated-percentage'
+        # Handle substitutions (used as ``|translated-page-percentage|`` in .rst source files)
+        substitution = 'translated-page-percentage'
         for ref in self.document.findall(docutils.nodes.substitution_reference):
             refname = ref['refname']
-            if refname == to_handle:
-                text = self.app.translations[self.document.get('source')]['percentage']
-                ref.replace_self(docutils.nodes.Text(text))
+            if refname == substitution:
+                text = self.app._translations[filename]['percentage']
+                newnode = docutils.nodes.Text(text)
+                if 'classes' in ref:
+                    ref.replace_attr('classes', [])
+                ref.replace_self(newnode)
 
 
 def setup(app):
-    """Setup ``translated`` Sphinx extension."""
+    """
+    Setup ``translated`` Sphinx extension.
+    """
+    # CSS class to add to translated nodes
     app.add_config_value('translated_class', 'translated', 'env')
+    app.add_config_value('untranslated_class', 'untranslated', 'env')
+
+    # Add the CSS file with our custom styles
     app.add_css_file('translated.css')
 
-    app.add_transform(TranslationCSSSubstitutions)
-    app.add_transform(TranslationSubstitutions)
+    app.add_transform(TranslationsManipulation)
 
-    app.translations = {}
-
+    # Define an internal variable to store translated percentages
+    app._translations = {}
 
     return {
         'version': '0.1',

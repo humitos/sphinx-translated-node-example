@@ -1,3 +1,7 @@
 .translated {
     background-color: rgba(0, 255, 0, .20)
 }
+
+.untranslated {
+    background-color: rgba(255, 0, 0, .20)
+}
